@@ -29,7 +29,7 @@ use rustc_middle::ty::visit::TypeVisitable;
 use rustc_middle::ty::{self, DefIdTree, IsSuggestable, Ty, TypeSuperVisitable, TypeVisitor};
 use rustc_session::Session;
 use rustc_span::symbol::{kw, Ident};
-use rustc_span::{self, sym, Span};
+use rustc_span::{self, sym, BytePos, Span};
 use rustc_trait_selection::traits::{self, ObligationCauseCode, SelectionContext};
 
 use std::iter;
@@ -841,6 +841,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             )
         };
 
+        println!("errors: {:?}", errors);
+
         // As we encounter issues, keep track of what we want to provide for the suggestion
         let mut labels = vec![];
         // If there is a single error, we give a specific suggestion; otherwise, we change to
@@ -960,13 +962,42 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     match &missing_idxs[..] {
                         &[expected_idx] => {
                             let (_, input_ty) = formal_and_expected_inputs[expected_idx];
-                            let span = if let Some((_, arg_span)) =
-                                provided_arg_tys.get(expected_idx.to_provided_idx())
-                            {
-                                *arg_span
+
+                            let start_span = full_call_span
+                                .find_ancestor_inside(error_span)
+                                .unwrap()
+                                .shrink_to_hi()
+                                .to(error_span.shrink_to_hi());
+
+                            assert_eq!(args_span, start_span);
+
+                            let start_span =
+                                start_span.with_hi(start_span.lo() + BytePos(1)).shrink_to_hi();
+
+                            let last_idx = expected_idx.index().checked_sub(1);
+
+                            let span = if let Some(idx) = last_idx {
+                                if let Some((_, arg_span)) = provided_arg_tys.get(idx.into()) {
+                                    let span = arg_span.shrink_to_hi();
+
+                                    span
+                                } else {
+                                    start_span
+                                }
                             } else {
-                                args_span
+                                start_span
                             };
+
+                            let mut suggestion = ty_to_snippet(input_ty, expected_idx);
+
+                            if expected_idx != 0u32.into() {
+                                suggestion = format!(", {suggestion}");
+                            } else {
+                                suggestion += ", ";
+                            }
+
+                            suggestions.push((span, suggestion));
+
                             let rendered = if !has_error_or_infer([input_ty]) {
                                 format!(" of type `{}`", input_ty)
                             } else {
@@ -1150,7 +1181,13 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         let suggestion_text = match suggestion_text {
             SuggestionText::None => None,
             SuggestionText::Provide(plural) => {
-                Some(format!("provide the argument{}", if plural { "s" } else { "" }))
+                err.multipart_suggestion_verbose(
+                    format!("provide the argument{}", if plural { "s" } else { "" }),
+                    suggestions,
+                    Applicability::HasPlaceholders,
+                );
+
+                None
             }
             SuggestionText::Remove(plural) => {
                 err.multipart_suggestion_verbose(
@@ -1158,12 +1195,15 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     suggestions,
                     Applicability::HasPlaceholders,
                 );
+
                 None
             }
             SuggestionText::Swap => Some("swap these arguments".to_string()),
             SuggestionText::Reorder => Some("reorder these arguments".to_string()),
             SuggestionText::DidYouMean => Some("did you mean".to_string()),
         };
+
+        // FIXME: this whole block is not good behavior; for no error do we want to print out the whole function call.
         if let Some(suggestion_text) = suggestion_text {
             let source_map = self.sess().source_map();
             let (mut suggestion, suggestion_span) =
