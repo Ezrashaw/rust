@@ -963,47 +963,33 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                         &[expected_idx] => {
                             let (_, input_ty) = formal_and_expected_inputs[expected_idx];
 
-                            let start_span = full_call_span
-                                .find_ancestor_inside(error_span)
-                                .unwrap()
-                                .shrink_to_hi()
-                                .to(error_span.shrink_to_hi());
-
-                            assert_eq!(args_span, start_span);
-
-                            let start_span =
-                                start_span.with_hi(start_span.lo() + BytePos(1)).shrink_to_hi();
-
                             let last_idx = expected_idx.index().checked_sub(1);
 
                             let span = if let Some(idx) = last_idx {
                                 if let Some((_, arg_span)) = provided_arg_tys.get(idx.into()) {
-                                    let span = arg_span.shrink_to_hi();
-
-                                    span
+                                    arg_span.shrink_to_hi()
                                 } else {
-                                    start_span
+                                    unreachable!()
                                 }
                             } else {
-                                start_span
+                                args_span.with_lo(args_span.lo() + BytePos(1)).shrink_to_lo()
                             };
 
                             let mut suggestion = ty_to_snippet(input_ty, expected_idx);
 
-                            if expected_idx != 0u32.into() {
+                            if expected_idx.index() > 0 {
                                 suggestion = format!(", {suggestion}");
-                            } else {
-                                suggestion += ", ";
                             }
 
                             suggestions.push((span, suggestion));
 
                             let rendered = if !has_error_or_infer([input_ty]) {
-                                format!(" of type `{}`", input_ty)
+                                format!("an argument of type `{}` is missing", input_ty)
                             } else {
-                                "".to_string()
+                                "an argument is missing".to_string()
                             };
-                            labels.push((span, format!("an argument{} is missing", rendered)));
+
+                            labels.push((span, rendered));
                             suggestion_text = match suggestion_text {
                                 SuggestionText::None => SuggestionText::Provide(false),
                                 SuggestionText::Provide(_) => SuggestionText::Provide(true),
@@ -1152,20 +1138,20 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             }
         }
 
-        // Incorporate the argument changes in the removal suggestion.
-        let mut prev = -1;
-        for (expected_idx, provided_idx) in matched_inputs.iter_enumerated() {
-            if let Some(provided_idx) = provided_idx {
-                prev = provided_idx.index() as i64;
-            }
-            let idx = ProvidedIdx::from_usize((prev + 1) as usize);
-            if let None = provided_idx
-                && let Some((_, arg_span)) = provided_arg_tys.get(idx)
-            {
-                let (_, expected_ty) = formal_and_expected_inputs[expected_idx];
-                suggestions.push((*arg_span, ty_to_snippet(expected_ty, expected_idx)));
-            }
-        }
+        // // Incorporate the argument changes in the removal suggestion.
+        // let mut prev = -1;
+        // for (expected_idx, provided_idx) in matched_inputs.iter_enumerated() {
+        //     if let Some(provided_idx) = provided_idx {
+        //         prev = provided_idx.index() as i64;
+        //     }
+        //     let idx = ProvidedIdx::from_usize((prev + 1) as usize);
+        //     if let None = provided_idx
+        //         && let Some((_, arg_span)) = provided_arg_tys.get(idx)
+        //     {
+        //         let (_, expected_ty) = formal_and_expected_inputs[expected_idx];
+        //         suggestions.push((*arg_span, ty_to_snippet(expected_ty, expected_idx)));
+        //     }
+        // }
 
         // If we have less than 5 things to say, it would be useful to call out exactly what's wrong
         if labels.len() <= 5 {
@@ -1173,6 +1159,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 err.span_label(span, label);
             }
         }
+
+        println!("suggestions: {suggestions:?}");
 
         // Call out where the function is defined
         self.label_fn_like(&mut err, fn_def_id, callee_ty, None, is_method);
