@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 colored = "2"
+ctrlc = "3.2.4"
 diff = "0.1.10"
 unified-diff = "0.2.1"
 getopts = "0.2"

@@ -18,7 +18,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::time::SystemTime;
 use test::ColorConfig;
 use tracing::*;
@@ -38,6 +37,8 @@ mod raise_fd_limit;
 mod read2;
 pub mod runtest;
 pub mod util;
+
+static CANCEL: AtomicBool = AtomicBool::new(false);
 
 fn main() {
     tracing_subscriber::fmt::init();
@@ -397,11 +398,14 @@ pub fn run_tests(config: Config) {
         configs.push(config.clone());
     };
 
-    let mut cancel = Arc::new(AtomicBool::new(false));
+    ctrlc::set_handler(|| {
+        CANCEL.store(true, Ordering::Relaxed);
+    })
+    .unwrap();
 
     let mut tests = Vec::new();
     for c in &configs {
-        make_tests(c, &mut tests, &cancel);
+        make_tests(c, &mut tests);
     }
 
     tests.sort_by(|a, b| a.desc.name.as_slice().cmp(&b.desc.name.as_slice()));
@@ -523,10 +527,10 @@ pub fn test_opts(config: &Config) -> test::TestOpts {
     }
 }
 
-pub fn make_tests(config: &Config, tests: &mut Vec<test::TestDescAndFn>, cancel: Arc<AtomicBool>) {
+pub fn make_tests(config: &Config, tests: &mut Vec<test::TestDescAndFn>) {
     debug!("making tests from {:?}", config.src_base.display());
     let inputs = common_inputs_stamp(config);
-    collect_tests_from_dir(config, &config.src_base, &PathBuf::new(), cancel, &inputs, tests)
+    collect_tests_from_dir(config, &config.src_base, &PathBuf::new(), &inputs, tests)
         .unwrap_or_else(|_| panic!("Could not read tests from {}", config.src_base.display()));
 }
 
@@ -570,7 +574,6 @@ fn collect_tests_from_dir(
     config: &Config,
     dir: &Path,
     relative_dir_path: &Path,
-    cancel: Arc<AtomicBool>,
     inputs: &Stamp,
     tests: &mut Vec<test::TestDescAndFn>,
 ) -> io::Result<()> {
@@ -608,7 +611,7 @@ fn collect_tests_from_dir(
             let paths =
                 TestPaths { file: file_path, relative_dir: relative_dir_path.to_path_buf() };
 
-            tests.extend(make_test(config, &paths, inputs))
+            tests.extend(make_test(config, &paths, inputs));
         } else if file_path.is_dir() {
             let relative_file_path = relative_dir_path.join(file.file_name());
             if &file_name != "auxiliary" {
@@ -635,12 +638,7 @@ pub fn is_test(file_name: &OsString) -> bool {
     !invalid_prefixes.iter().any(|p| file_name.starts_with(p))
 }
 
-fn make_test(
-    config: &Config,
-    testpaths: &TestPaths,
-    inputs: &Stamp,
-    cancel: Arc<AtomicBool>,
-) -> Vec<test::TestDescAndFn> {
+fn make_test(config: &Config, testpaths: &TestPaths, inputs: &Stamp) -> Vec<test::TestDescAndFn> {
     let test_path = if config.mode == Mode::RunMake {
         // Parse directives in the Makefile
         testpaths.file.join("Makefile")
@@ -811,13 +809,12 @@ fn make_test_closure(
     config: &Config,
     testpaths: &TestPaths,
     revision: Option<&String>,
-    cancel: Arc<AtomicBool>,
 ) -> test::TestFn {
     let config = config.clone();
     let testpaths = testpaths.clone();
     let revision = revision.cloned();
     test::DynTestFn(Box::new(move || {
-        if !cancel.load(Ordering::Relaxed) {
+        if !CANCEL.load(Ordering::Relaxed) {
             runtest::run(config, &testpaths, revision.as_deref());
         }
         Ok(())
