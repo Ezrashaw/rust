@@ -16,6 +16,9 @@ use std::fs;
 use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::SystemTime;
 use test::ColorConfig;
 use tracing::*;
@@ -394,9 +397,11 @@ pub fn run_tests(config: Config) {
         configs.push(config.clone());
     };
 
+    let mut cancel = Arc::new(AtomicBool::new(false));
+
     let mut tests = Vec::new();
     for c in &configs {
-        make_tests(c, &mut tests);
+        make_tests(c, &mut tests, &cancel);
     }
 
     tests.sort_by(|a, b| a.desc.name.as_slice().cmp(&b.desc.name.as_slice()));
@@ -518,10 +523,10 @@ pub fn test_opts(config: &Config) -> test::TestOpts {
     }
 }
 
-pub fn make_tests(config: &Config, tests: &mut Vec<test::TestDescAndFn>) {
+pub fn make_tests(config: &Config, tests: &mut Vec<test::TestDescAndFn>, cancel: Arc<AtomicBool>) {
     debug!("making tests from {:?}", config.src_base.display());
     let inputs = common_inputs_stamp(config);
-    collect_tests_from_dir(config, &config.src_base, &PathBuf::new(), &inputs, tests)
+    collect_tests_from_dir(config, &config.src_base, &PathBuf::new(), cancel, &inputs, tests)
         .unwrap_or_else(|_| panic!("Could not read tests from {}", config.src_base.display()));
 }
 
@@ -565,6 +570,7 @@ fn collect_tests_from_dir(
     config: &Config,
     dir: &Path,
     relative_dir_path: &Path,
+    cancel: Arc<AtomicBool>,
     inputs: &Stamp,
     tests: &mut Vec<test::TestDescAndFn>,
 ) -> io::Result<()> {
@@ -629,7 +635,12 @@ pub fn is_test(file_name: &OsString) -> bool {
     !invalid_prefixes.iter().any(|p| file_name.starts_with(p))
 }
 
-fn make_test(config: &Config, testpaths: &TestPaths, inputs: &Stamp) -> Vec<test::TestDescAndFn> {
+fn make_test(
+    config: &Config,
+    testpaths: &TestPaths,
+    inputs: &Stamp,
+    cancel: Arc<AtomicBool>,
+) -> Vec<test::TestDescAndFn> {
     let test_path = if config.mode == Mode::RunMake {
         // Parse directives in the Makefile
         testpaths.file.join("Makefile")
@@ -800,12 +811,15 @@ fn make_test_closure(
     config: &Config,
     testpaths: &TestPaths,
     revision: Option<&String>,
+    cancel: Arc<AtomicBool>,
 ) -> test::TestFn {
     let config = config.clone();
     let testpaths = testpaths.clone();
     let revision = revision.cloned();
     test::DynTestFn(Box::new(move || {
-        runtest::run(config, &testpaths, revision.as_deref());
+        if !cancel.load(Ordering::Relaxed) {
+            runtest::run(config, &testpaths, revision.as_deref());
+        }
         Ok(())
     }))
 }
