@@ -40,6 +40,10 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             return;
         }
 
+        if expr.span.in_macro_expansion() {
+            return;
+        }
+
         self.annotate_alternative_method_deref(err, expr, error);
 
         // Use `||` to give these suggestions a precedence

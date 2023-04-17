@@ -600,6 +600,11 @@ impl Span {
         matches!(outer_expn.kind, ExpnKind::Inlined)
     }
 
+    /// Returns `true` if `span` originates in a macro's expansion.
+    pub fn in_macro_expansion(self) -> bool {
+        matches!(self.ctxt().outer_expn_data().kind, ExpnKind::Macro(..))
+    }
+
     /// Returns `true` if `span` originates in a derive-macro's expansion.
     pub fn in_derive_expansion(self) -> bool {
         matches!(self.ctxt().outer_expn_data().kind, ExpnKind::Macro(MacroKind::Derive, _))
