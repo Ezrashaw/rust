@@ -50,6 +50,7 @@ struct MarkSymbolVisitor<'tcx> {
     repr_has_repr_c: bool,
     repr_has_repr_simd: bool,
     in_pat: bool,
+    in_body: u32,
     ignore_variant_stack: Vec<DefId>,
     // maps from tuple struct constructors to tuple struct items
     struct_constructors: LocalDefIdMap<LocalDefId>,
@@ -239,6 +240,7 @@ impl<'tcx> MarkSymbolVisitor<'tcx> {
 
     fn mark_live_symbols(&mut self) {
         let mut scanned = LocalDefIdSet::default();
+        dbg!(&self.worklist);
         while let Some(id) = self.worklist.pop() {
             if !scanned.insert(id) {
                 continue;
@@ -356,6 +358,12 @@ impl<'tcx> MarkSymbolVisitor<'tcx> {
 }
 
 impl<'tcx> Visitor<'tcx> for MarkSymbolVisitor<'tcx> {
+    fn visit_body(&mut self, body: &'tcx hir::Body<'tcx>) {
+        self.in_body += 1;
+        intravisit::walk_body(self, body);
+        self.in_body -= 1;
+    }
+
     fn visit_nested_body(&mut self, body: hir::BodyId) {
         let old_maybe_typeck_results =
             self.maybe_typeck_results.replace(self.tcx.typeck_body(body));
@@ -441,6 +449,22 @@ impl<'tcx> Visitor<'tcx> for MarkSymbolVisitor<'tcx> {
 
         intravisit::walk_pat(self, pat);
         self.in_pat = false;
+    }
+
+    fn visit_qpath(
+        &mut self,
+        qpath: &'tcx hir::QPath<'tcx>,
+        id: hir::HirId,
+        _span: rustc_span::Span,
+    ) {
+        // self.tcx.
+        // dbg!(qpath, self.in_body);
+        if self.in_body > 0 {
+            let res = self.typeck_results().qpath_res(qpath, id);
+            dbg!(res);
+            self.handle_res(res);
+        }
+        intravisit::walk_qpath(self, qpath, id)
     }
 
     fn visit_path(&mut self, path: &hir::Path<'tcx>, _: hir::HirId) {
@@ -632,6 +656,7 @@ fn live_symbols_and_ignored_derived_traits(
         repr_has_repr_c: false,
         repr_has_repr_simd: false,
         in_pat: false,
+        in_body: 0,
         ignore_variant_stack: vec![],
         struct_constructors,
         ignored_derived_traits: Default::default(),

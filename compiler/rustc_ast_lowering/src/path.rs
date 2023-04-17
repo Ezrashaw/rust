@@ -113,6 +113,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         //   3. `<<std::vec::Vec<T>>::IntoIter>::Item`
         // * final path is `<<<std::vec::Vec<T>>::IntoIter>::Item>::clone`
         for (i, segment) in p.segments.iter().enumerate().skip(proj_start) {
+            // dbg!(&segment);
             let hir_segment = self.arena.alloc(self.lower_path_segment(
                 p.span,
                 segment,
@@ -121,6 +122,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                 itctx,
             ));
             let qpath = hir::QPath::TypeRelative(ty, hir_segment);
+            // dbg!(&qpath);
 
             // It's finished, return the extension of the right node type.
             if i == p.segments.len() - 1 {
@@ -244,7 +246,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
             );
         }
 
-        let res = self.expect_full_res(segment.id);
+        let res = self.expect_full_res(dbg!(segment).id);
         let hir_id = self.lower_node_id(segment.id);
         debug!(
             "lower_path_segment: ident={:?} original-id={:?} new-id={:?}",
@@ -254,7 +256,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         hir::PathSegment {
             ident: self.lower_ident(segment.ident),
             hir_id,
-            res: self.lower_res(res),
+            res: self.lower_res(dbg!(res)),
             infer_args,
             args: if generic_args.is_empty() && generic_args.span.is_empty() {
                 None
