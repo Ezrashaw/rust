@@ -10,6 +10,16 @@ use rustc_middle::ty::Ty;
 use rustc_span::{symbol::Ident, Span, Symbol};
 
 #[derive(Diagnostic)]
+#[diag(hir_analysis_unable_to_infer_variance)]
+pub struct UnableToInferVariance {
+    #[primary_span]
+    #[label]
+    pub span: Span,
+
+    pub parameter: Symbol,
+}
+
+#[derive(Diagnostic)]
 #[diag(hir_analysis_unrecognized_atomic_operation, code = "E0092")]
 pub struct UnrecognizedAtomicOperation<'a> {
     #[primary_span]

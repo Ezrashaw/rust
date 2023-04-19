@@ -1,3 +1,7 @@
+hir_analysis_unable_to_infer_variance =
+    unable to infer variance for parameter `{$parameter}`
+    .label = unable 
+
 hir_analysis_unrecognized_atomic_operation =
     unrecognized atomic operation function: `{$op}`
     .label = unrecognized atomic operation

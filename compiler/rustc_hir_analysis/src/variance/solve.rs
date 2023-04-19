@@ -8,6 +8,8 @@
 use rustc_hir::def_id::DefIdMap;
 use rustc_middle::ty;
 
+use crate::errors::UnableToInferVariance;
+
 use super::constraints::*;
 use super::terms::VarianceTerm::*;
 use super::terms::*;
@@ -53,9 +55,8 @@ impl<'a, 'tcx> SolveContext<'a, 'tcx> {
             changed = false;
 
             for constraint in &self.constraints {
-                let Constraint { inferred, variance: term } = *constraint;
-                let InferredIndex(inferred) = inferred;
-                let variance = self.evaluate(term);
+                let Constraint { inferred: InferredIndex(inferred), variance: term } = *constraint;
+                let variance = self.variance_of_term(term);
                 let old_value = self.solutions[inferred];
                 let new_value = glb(variance, old_value);
                 if old_value != new_value {
@@ -111,22 +112,36 @@ impl<'a, 'tcx> SolveContext<'a, 'tcx> {
                     }
                 }
 
+                let tcx = self.terms_cx.tcx;
+                for (variance, arg) in variances.iter().zip(generics.params.iter()) {
+                    if let ty::Variance::Bivariant = variance {
+                        tcx.sess.emit_err(UnableToInferVariance {
+                            span: tcx.def_span(arg.def_id),
+                            parameter: arg.name,
+                        });
+                    }
+                }
+
                 (def_id.to_def_id(), &*variances)
             },
         ))
     }
 
-    fn evaluate(&self, term: VarianceTermPtr<'a>) -> ty::Variance {
+    fn variance_of_term(&self, term: VarianceTermPtr<'a>) -> ty::Variance {
+        self.evaluate(term).unwrap_or(ty::Variance::Bivariant)
+    }
+
+    fn evaluate(&self, term: VarianceTermPtr<'a>) -> Option<ty::Variance> {
         match *term {
-            ConstantTerm(v) => v,
+            ConstantTerm(v) => Some(v),
 
             TransformTerm(t1, t2) => {
-                let v1 = self.evaluate(t1);
+                let v1 = self.variance_of_term(t1);
                 let v2 = self.evaluate(t2);
-                v1.xform(v2)
+                if let Some(v2) = v2 { Some(v1.xform(v2)) } else { Some(v1) }
             }
 
-            InferredTerm(InferredIndex(index)) => self.solutions[index],
+            InferredTerm(InferredIndex(index)) => self.solutions.get(index).copied(),
         }
     }
 }

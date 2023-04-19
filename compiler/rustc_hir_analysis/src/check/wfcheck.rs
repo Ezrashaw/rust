@@ -1866,7 +1866,8 @@ fn report_bivariance(
 ) -> ErrorGuaranteed {
     let span = param.span;
     let param_name = param.name.ident().name;
-    let mut err = error_392(tcx, span, param_name);
+    let mut err = struct_span_err!(tcx.sess, span, E0392, "parameter `{param_name}` is never used");
+    err.span_label(span, "unused parameter");
 
     let suggested_marker_id = tcx.lang_items().phantom_data();
     // Help is available only in presence of lang items.
@@ -1946,16 +1947,6 @@ fn check_mod_type_wf(tcx: TyCtxt<'_>, module: LocalDefId) {
     items.par_impl_items(|item| tcx.ensure().check_well_formed(item.owner_id));
     items.par_trait_items(|item| tcx.ensure().check_well_formed(item.owner_id));
     items.par_foreign_items(|item| tcx.ensure().check_well_formed(item.owner_id));
-}
-
-fn error_392(
-    tcx: TyCtxt<'_>,
-    span: Span,
-    param_name: Symbol,
-) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
-    let mut err = struct_span_err!(tcx.sess, span, E0392, "parameter `{param_name}` is never used");
-    err.span_label(span, "unused parameter");
-    err
 }
 
 pub fn provide(providers: &mut Providers) {

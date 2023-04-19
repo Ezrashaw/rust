@@ -34,10 +34,7 @@ impl<'a> fmt::Debug for VarianceTerm<'a> {
         match *self {
             ConstantTerm(c1) => write!(f, "{:?}", c1),
             TransformTerm(v1, v2) => write!(f, "({:?} \u{00D7} {:?})", v1, v2),
-            InferredTerm(id) => write!(f, "[{}]", {
-                let InferredIndex(i) = id;
-                i
-            }),
+            InferredTerm(id) => write!(f, "[{}]", id.0),
         }
     }
 }
