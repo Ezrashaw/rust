@@ -990,10 +990,11 @@ pub fn noop_flat_map_field_def<T: MutVisitor>(
     mut fd: FieldDef,
     visitor: &mut T,
 ) -> SmallVec<[FieldDef; 1]> {
-    let FieldDef { span, ident, vis, id, ty, attrs, is_placeholder: _ } = &mut fd;
+    let FieldDef { span, ident, vis, unsafety, id, ty, attrs, is_placeholder: _ } = &mut fd;
     visitor.visit_span(span);
     visit_opt(ident, |ident| visitor.visit_ident(ident));
     visitor.visit_vis(vis);
+    visit_unsafety(unsafety, visitor);
     visitor.visit_id(id);
     visitor.visit_ty(ty);
     visit_attrs(attrs, visitor);

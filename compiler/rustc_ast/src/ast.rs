@@ -2688,6 +2688,7 @@ pub struct FieldDef {
     pub id: NodeId,
     pub span: Span,
     pub vis: Visibility,
+    pub unsafety: Unsafe,
     pub ident: Option<Ident>,
 
     pub ty: P<Ty>,

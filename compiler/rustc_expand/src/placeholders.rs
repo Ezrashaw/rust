@@ -170,6 +170,7 @@ pub fn placeholder(
             span,
             ty: ty(),
             vis,
+            unsafety: ast::Unsafe::No,
             is_placeholder: true,
         }]),
         AstFragmentKind::Variants => AstFragment::Variants(smallvec![ast::Variant {

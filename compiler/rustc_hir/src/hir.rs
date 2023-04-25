@@ -2978,6 +2978,7 @@ pub struct PolyTraitRef<'hir> {
 pub struct FieldDef<'hir> {
     pub span: Span,
     pub vis_span: Span,
+    pub unsafety: Unsafety,
     pub ident: Ident,
     pub hir_id: HirId,
     pub def_id: LocalDefId,

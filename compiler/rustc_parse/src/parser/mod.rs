@@ -1196,6 +1196,15 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parses unsafety for struct fields (case sensitive, feature-gated)
+    fn parse_struct_field_unsafety(&mut self) -> Unsafe {
+        let unsafety = self.parse_unsafety(Case::Sensitive);
+        if let Unsafe::Yes(span) = unsafety {
+            self.sess.gated_spans.gate(sym::unsafe_fields, span);
+        }
+        unsafety
+    }
+
     /// Parses constness: `const` or nothing.
     fn parse_constness(&mut self, case: Case) -> Const {
         self.parse_constness_(case, false)

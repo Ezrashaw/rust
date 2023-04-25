@@ -538,6 +538,8 @@ declare_features! (
     /// Enables rustc to generate code that instructs libstd to NOT ignore SIGPIPE.
     (active, unix_sigpipe, "1.65.0", Some(97889), None),
     /// Allows unsized fn parameters.
+    (incomplete, unsafe_fields, "CURRENT_RUSTC_VERSION", None, None),
+    /// Allows unsized fn parameters.
     (active, unsized_fn_params, "1.49.0", Some(48055), None),
     /// Allows unsized rvalues at arguments and parameters.
     (incomplete, unsized_locals, "1.30.0", Some(48055), None),
