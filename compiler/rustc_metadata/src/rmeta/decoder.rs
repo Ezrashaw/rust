@@ -22,7 +22,7 @@ use rustc_middle::middle::exported_symbols::{ExportedSymbol, SymbolExportInfo};
 use rustc_middle::mir::interpret::{AllocDecodingSession, AllocDecodingState};
 use rustc_middle::ty::codec::TyDecoder;
 use rustc_middle::ty::fast_reject::SimplifiedType;
-use rustc_middle::ty::GeneratorDiagnosticData;
+use rustc_middle::ty::{GeneratorDiagnosticData, Unsafety};
 use rustc_middle::ty::{self, ParameterizedOverTcx, Predicate, Ty, TyCtxt, Visibility};
 use rustc_serialize::opaque::MemDecoder;
 use rustc_serialize::{Decodable, Decoder};
@@ -880,6 +880,7 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
                     did,
                     name: self.item_name(did.index),
                     vis: self.get_visibility(did.index),
+                    unsafety: self.get_field_unsafety(did.index),
                 })
                 .collect(),
             adt_kind,
@@ -931,6 +932,15 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
             .unwrap_or_else(|| self.missing("visibility", id))
             .decode(self)
             .map_id(|index| self.local_def_id(index))
+    }
+
+    fn get_field_unsafety(self, id: DefIndex) -> Unsafety {
+        self.root
+            .tables
+            .struct_field_unsafety
+            .get(self, id)
+            .unwrap_or_else(|| self.missing("unsafety", id))
+            .decode(self)
     }
 
     fn get_trait_item_def_id(self, id: DefIndex) -> Option<DefId> {

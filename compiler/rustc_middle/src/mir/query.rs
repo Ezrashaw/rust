@@ -39,6 +39,7 @@ pub enum UnsafetyViolationDetails {
     MutationOfLayoutConstrainedField,
     BorrowOfLayoutConstrainedField,
     CallToFunctionWith,
+    UseOfUnsafeField,
 }
 
 impl UnsafetyViolationDetails {
@@ -94,6 +95,11 @@ impl UnsafetyViolationDetails {
             CallToFunctionWith => (
                 "call to function with `#[target_feature]`",
                 "can only be called if the required target features are available",
+            ),
+            UseOfUnsafeField => (
+                "use of unsafe struct field",
+                "unsafe fields are unsafe to access \
+                 at all; extra user-defined invariants exist on them",
             ),
         }
     }

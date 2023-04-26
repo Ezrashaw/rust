@@ -67,6 +67,7 @@ trivially_parameterized_over_tcx! {
     ty::ReprOptions,
     ty::TraitDef,
     ty::UnusedGenericParams,
+    ty::Unsafety,
     ty::Visibility<DefIndex>,
     ty::adjustment::CoerceUnsizedInfo,
     ty::fast_reject::SimplifiedType,

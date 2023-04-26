@@ -261,6 +261,7 @@ trivial! {
     rustc_middle::ty::Representability,
     rustc_middle::ty::ReprOptions,
     rustc_middle::ty::UnusedGenericParams,
+    rustc_middle::ty::Unsafety,
     rustc_middle::ty::util::AlwaysRequiresDrop,
     rustc_middle::ty::Visibility<rustc_span::def_id::DefId>,
     rustc_session::config::CrateType,

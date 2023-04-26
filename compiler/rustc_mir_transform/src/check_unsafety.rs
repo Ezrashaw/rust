@@ -199,6 +199,15 @@ impl<'tcx> Visitor<'tcx> for UnsafetyChecker<'_, 'tcx> {
             }
         }
 
+        // Check for accesses of unsafe struct fields
+        for (base, proj) in place.iter_projections() {
+            if let ProjectionElem::Field(idx, _) = proj
+                && let Some(field_def) = base.ty(self.body, self.tcx).field_def(idx)
+                && let ty::Unsafety::Unsafe = field_def.unsafety {
+                self.require_unsafe(UnsafetyViolationKind::General, UnsafetyViolationDetails::UseOfUnsafeField);
+            }
+        }
+
         // Check for raw pointer `Deref`.
         for (base, proj) in place.iter_projections() {
             if proj == ProjectionElem::Deref {

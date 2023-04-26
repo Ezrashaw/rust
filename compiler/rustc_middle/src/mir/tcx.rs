@@ -51,6 +51,24 @@ impl<'tcx> PlaceTy<'tcx> {
         }
     }
 
+    #[instrument(level = "debug", ret)]
+    pub fn field_def(self, f: FieldIdx) -> Option<&'tcx ty::FieldDef> {
+        match self.ty.kind() {
+            ty::Adt(adt_def, _) => {
+                let variant_def = match self.variant_index {
+                    None => adt_def.non_enum_variant(),
+                    Some(variant_index) => {
+                        assert!(adt_def.is_enum());
+                        &adt_def.variant(variant_index)
+                    }
+                };
+
+                Some(&variant_def.fields[f])
+            }
+            _ => None,
+        }
+    }
+
     /// Convenience wrapper around `projection_ty_core` for
     /// `PlaceElem`, where we can just use the `Ty` that is already
     /// stored inline on field projection elems.

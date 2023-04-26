@@ -270,6 +270,7 @@ provide! { tcx, def_id, other, cdata,
     associated_types_for_impl_traits_in_associated_fn => { table_defaulted_array }
 
     visibility => { cdata.get_visibility(def_id.index) }
+    field_unsafety => { cdata.get_field_unsafety(def_id.index) }
     adt_def => { cdata.get_adt_def(def_id.index, tcx) }
     adt_destructor => {
         let _ = cdata;

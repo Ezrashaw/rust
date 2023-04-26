@@ -1289,6 +1289,10 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                     self.tcx.local_visibility(local_id).map_id(|def_id| def_id.local_def_index);
                 record!(self.tables.visibility[def_id] <- vis);
             }
+            if let DefKind::Field = def_kind {
+                let unsafety = self.tcx.field_unsafety(local_id);
+                record!(self.tables.struct_field_unsafety[def_id] <- unsafety);
+            }
             if should_encode_stability(def_kind) {
                 self.encode_stability(def_id);
                 self.encode_const_stability(def_id);

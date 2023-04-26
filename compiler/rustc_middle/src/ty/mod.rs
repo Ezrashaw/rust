@@ -1882,11 +1882,18 @@ pub enum VariantDiscr {
     Relative(u32),
 }
 
+#[derive(Clone, Copy, Debug, HashStable, TyEncodable, TyDecodable)]
+pub enum Unsafety {
+    Unsafe,
+    Normal,
+}
+
 #[derive(Debug, HashStable, TyEncodable, TyDecodable)]
 pub struct FieldDef {
     pub did: DefId,
     pub name: Symbol,
     pub vis: Visibility<DefId>,
+    pub unsafety: Unsafety,
 }
 
 impl PartialEq for FieldDef {
@@ -1899,9 +1906,9 @@ impl PartialEq for FieldDef {
         // of `FieldDef` changes, a compile-error will be produced, reminding
         // us to revisit this assumption.
 
-        let Self { did: lhs_did, name: _, vis: _ } = &self;
+        let Self { did: lhs_did, name: _, vis: _, unsafety: _ } = &self;
 
-        let Self { did: rhs_did, name: _, vis: _ } = other;
+        let Self { did: rhs_did, name: _, vis: _, unsafety: _ } = other;
 
         lhs_did == rhs_did
     }
@@ -1919,7 +1926,7 @@ impl Hash for FieldDef {
         // of `FieldDef` changes, a compile-error will be produced, reminding
         // us to revisit this assumption.
 
-        let Self { did, name: _, vis: _ } = &self;
+        let Self { did, name: _, vis: _, unsafety: _ } = &self;
 
         did.hash(s)
     }

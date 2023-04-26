@@ -77,6 +77,7 @@ pub fn provide(providers: &mut Providers) {
         generator_kind,
         collect_mod_item_types,
         is_type_alias_impl_trait,
+        field_unsafety,
         ..*providers
     };
 }
@@ -796,10 +797,16 @@ fn convert_variant(
                 seen_fields.insert(f.ident.normalize_to_macros_2_0(), f.span);
             }
 
+            let unsafety = match f.unsafety {
+                hir::Unsafety::Unsafe => ty::Unsafety::Unsafe,
+                hir::Unsafety::Normal => ty::Unsafety::Normal,
+            };
+
             ty::FieldDef {
                 did: f.def_id.to_def_id(),
                 name: f.ident.name,
                 vis: tcx.visibility(f.def_id),
+                unsafety,
             }
         })
         .collect();
@@ -820,6 +827,13 @@ fn convert_variant(
             || variant_did
                 .map_or(false, |variant_did| tcx.has_attr(variant_did, sym::non_exhaustive)),
     )
+}
+
+fn field_unsafety(tcx: TyCtxt<'_>, def_id: LocalDefId) -> ty::Unsafety {
+    match tcx.hir().get_by_def_id(def_id).expect_field().unsafety {
+        hir::Unsafety::Unsafe => ty::Unsafety::Unsafe,
+        hir::Unsafety::Normal => ty::Unsafety::Normal,
+    }
 }
 
 fn adt_def(tcx: TyCtxt<'_>, def_id: LocalDefId) -> ty::AdtDef<'_> {

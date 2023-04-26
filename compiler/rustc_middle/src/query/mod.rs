@@ -1612,6 +1612,12 @@ rustc_queries! {
         feedable
     }
 
+    query field_unsafety(def_id: DefId) -> ty::Unsafety {
+        desc { |tcx| "computing unsafety of field `{}`", tcx.def_path_str(def_id) }
+        separate_provide_extern
+        feedable
+    }
+
     query inhabited_predicate_adt(key: DefId) -> ty::inhabitedness::InhabitedPredicate<'tcx> {
         desc { "computing the uninhabited predicate of `{:?}`", key }
     }
