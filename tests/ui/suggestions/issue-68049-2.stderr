@@ -18,7 +18,7 @@ LL |     self.0 += *input;
 help: consider changing this to be a mutable reference
    |
 LL |   fn example(&mut self, input: &i32); // should suggest here
-   |              ~~~~~~~~~
+   |               +++
 
 error: aborting due to 2 previous errors
 

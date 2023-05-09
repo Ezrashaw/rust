@@ -984,8 +984,8 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
 
         let label = match *local_decl.local_info() {
             LocalInfo::User(mir::BindingForm::ImplicitSelf(_)) => {
-                let suggestion = suggest_ampmut_self(self.infcx.tcx, decl_span);
-                Some((true, decl_span, suggestion))
+                let (suggestion, span) = suggest_ampmut_self(self.infcx.tcx, decl_span);
+                Some((true, span, suggestion.to_owned()))
             }
 
             LocalInfo::User(mir::BindingForm::Var(mir::VarBindingForm {
@@ -1037,8 +1037,10 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                                     opt_ty_info: None,
                                     ..
                                 })) => {
-                                    let sugg = suggest_ampmut_self(self.infcx.tcx, decl_span);
-                                    (true, decl_span, sugg)
+                                    let (sugg, span) =
+                                        suggest_ampmut_self(self.infcx.tcx, decl_span);
+
+                                    (true, span, sugg.to_owned())
                                 }
                                 // explicit self (eg `self: &'a Self`)
                                 _ => suggest_ampmut(
@@ -1167,17 +1169,31 @@ pub fn mut_borrow_of_mutable_ref(local_decl: &LocalDecl<'_>, local_name: Option<
     }
 }
 
-fn suggest_ampmut_self<'tcx>(tcx: TyCtxt<'tcx>, span: Span) -> String {
+/// Creates a suggestion to make an immutable `self` receiver, taking into
+/// account explicit lifetime annotations, mutable.
+///
+/// Examples with and without lifetimes are given:
+///
+///     &mut self
+///      +++
+///
+///     &'lt mut self
+///          +++
+///
+/// Do not use this function with explicit `self` types (eg `self: &Self`),
+/// use [`suggest_ampmut`] instead.
+fn suggest_ampmut_self<'tcx>(tcx: TyCtxt<'tcx>, span: Span) -> (&'static str, Span) {
     match tcx.sess.source_map().span_to_snippet(span) {
         Ok(snippet) => {
-            let lt_pos = snippet.find('\'');
-            if let Some(lt_pos) = lt_pos {
-                format!("&{}mut self", &snippet[lt_pos..snippet.len() - 4])
+            if snippet.starts_with("&'") && let Some(lt_end_pos) = snippet.find(char::is_whitespace)  {
+                let span = span.with_lo(span.lo() + BytePos(lt_end_pos as u32)).shrink_to_lo();
+
+                (" mut", span)
             } else {
-                "&mut self".to_string()
+                ("mut ", span.with_lo(span.lo() + BytePos(1)).shrink_to_lo())
             }
         }
-        _ => "&mut self".to_string(),
+        _ => ("&mut self", span),
     }
 }
 
