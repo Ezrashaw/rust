@@ -62,9 +62,11 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 local,
                 projection: [proj_base @ .., ProjectionElem::Field(upvar_index, _)],
             } => {
-                debug_assert!(is_closure_or_generator(
-                    Place::ty_from(local, proj_base, self.body, self.infcx.tcx).ty
-                ));
+                debug_assert!(
+                    Place::ty_from(local, proj_base, self.body, self.infcx.tcx)
+                        .ty
+                        .is_closure_or_generator()
+                );
 
                 let imm_borrow_derefed = self.upvars[upvar_index.index()]
                     .place
@@ -122,7 +124,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 {
                     item_msg = access_place_desc;
                     debug_assert!(self.body.local_decls[ty::CAPTURE_STRUCT_LOCAL].ty.is_ref());
-                    debug_assert!(is_closure_or_generator(
+                    debug_assert!(
                         Place::ty_from(
                             the_place_err.local,
                             the_place_err.projection,
@@ -130,7 +132,8 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                             self.infcx.tcx
                         )
                         .ty
-                    ));
+                        .is_closure_or_generator()
+                    );
 
                     reason = if self.is_upvar_field_projection(access_place.as_ref()).is_some() {
                         ", as it is a captured variable in a `Fn` closure".to_string()
@@ -399,9 +402,11 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 local,
                 projection: [proj_base @ .., ProjectionElem::Field(upvar_index, _)],
             } => {
-                debug_assert!(is_closure_or_generator(
-                    Place::ty_from(local, proj_base, self.body, self.infcx.tcx).ty
-                ));
+                debug_assert!(
+                    Place::ty_from(local, proj_base, self.body, self.infcx.tcx)
+                        .ty
+                        .is_closure_or_generator()
+                );
 
                 let captured_place = &self.upvars[upvar_index.index()].place;
 
@@ -1297,10 +1302,6 @@ fn suggest_ampmut<'tcx>(
             format!("{}mut {}", if decl_ty.is_ref() {"&"} else {"*"}, ty_mut.ty)
         )
     }
-}
-
-fn is_closure_or_generator(ty: Ty<'_>) -> bool {
-    ty.is_closure() || ty.is_generator()
 }
 
 /// Given a field that needs to be mutable, returns a span where the " mut " could go.

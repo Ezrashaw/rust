@@ -2011,6 +2011,11 @@ impl<'tcx> Ty<'tcx> {
     }
 
     #[inline]
+    pub fn is_closure_or_generator(self) -> bool {
+        matches!(self.kind(), Closure(..) | Generator(..))
+    }
+
+    #[inline]
     pub fn is_integral(self) -> bool {
         matches!(self.kind(), Infer(IntVar(_)) | Int(_) | Uint(_))
     }
