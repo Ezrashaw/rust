@@ -2218,6 +2218,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             BindingMode::ByValue => ty::BindingMode::BindByValue(mutability),
             BindingMode::ByRef(_) => ty::BindingMode::BindByReference(mutability),
         };
+        let ty_binding = user_ty.projections_and_spans().next().map(|(_, span)| *span);
         let local = LocalDecl {
             mutability,
             ty: var_ty,
@@ -2227,11 +2228,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             local_info: ClearCrossCrate::Set(Box::new(LocalInfo::User(BindingForm::Var(
                 VarBindingForm {
                     binding_mode,
-                    // hypothetically, `visit_primary_bindings` could try to unzip
-                    // an outermost hir::Ty as we descend, matching up
-                    // idents in pat; but complex w/ unclear UI payoff.
-                    // Instead, just abandon providing diagnostic info.
-                    opt_ty_info: None,
+                    opt_ty_info: ty_binding,
                     opt_match_place,
                     pat_span,
                 },
